@@ -112,6 +112,11 @@ namespace Whitestone.OpenSerialPortMonitor.Main.ViewModels
             string dataRaw = _dataViewRawBuilder.ToString();
             _dataViewRawBuilder = new StringBuilder();
 
+            string TrimFromStart(string str, int size = 0x8000) { return (str.Length > size) ? str.Remove(0, str.Length - size) : str; }
+            DataViewParsed = TrimFromStart(DataViewParsed);
+            DataViewHex = TrimFromStart(DataViewHex);
+            DataViewRaw = TrimFromStart(DataViewRaw);
+
             DataViewParsed += dataParsed;
             DataViewHex += dataHex;
             DataViewRaw += dataRaw;
