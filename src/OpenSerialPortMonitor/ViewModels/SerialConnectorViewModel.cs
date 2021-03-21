@@ -59,7 +59,7 @@ namespace Whitestone.OpenSerialPortMonitor.Main.ViewModels
 
         private void BindValues()
         {
-            BaudRates = new BindableCollection<int>() { 1200, 2400, 4800, 9600, 19200, 38400, 57600, 115200 };
+            BaudRates = new BindableCollection<int>() { 1200, 2400, 4800, 9600, 19200, 38400, 57600, 74880, 115200, 250000, 500000, 1000000 };
             SelectedBaudRate = 115200;
 
             DataBits = new BindableCollection<int>() { 5, 6, 7, 8, 9 };

@@ -21,6 +21,7 @@
             </MenuItem>
             <MenuItem Header="_View">
                 <MenuItem Header="_Autoscroll" x:Name="Autoscroll" IsCheckable="True" IsChecked="true"></MenuItem>
+                <MenuItem Header="_Clear screen" x:Name="ClearScreen"></MenuItem>
             </MenuItem>
             <MenuItem Header="_Help">
                 <MenuItem Header="_About" x:Name="OpenAbout"></MenuItem>

@@ -85,6 +85,11 @@ namespace Whitestone.OpenSerialPortMonitor.Main.ViewModels
             Application.Current.Shutdown();
         }
 
+        public void ClearScreen()
+        {
+            _eventAggregator.PublishOnUIThread(new ClearScreen());
+        }
+
         public void Autoscroll()
         {
             _isAutoscroll = !_isAutoscroll;
