@@ -80,6 +80,7 @@
     <Compile Include="Framework\AppBootstrapper.cs" />
     <Compile Include="Framework\InputBindingTrigger.cs" />
     <Compile Include="Framework\IShell.cs" />
+    <Compile Include="Messages\ClearScreen.cs" />
     <Compile Include="Messages\Autoscroll.cs" />
     <Compile Include="Messages\ConnectionError.cs" />
     <Compile Include="Messages\SerialPortConnect.cs" />

@@ -13,7 +13,7 @@ using Whitestone.OpenSerialPortMonitor.SerialCommunication;
 
 namespace Whitestone.OpenSerialPortMonitor.Main.ViewModels
 {
-    public class SerialDataViewModel : PropertyChangedBase, IHandle<SerialPortConnect>, IHandle<SerialPortDisconnect>, IHandle<Autoscroll>, IHandle<SerialPortSend>
+    public class SerialDataViewModel : PropertyChangedBase, IHandle<SerialPortConnect>, IHandle<SerialPortDisconnect>, IHandle<Autoscroll>, IHandle<SerialPortSend>, IHandle<ClearScreen>
     {
         private readonly IEventAggregator _eventAggregator;
         private SerialReader _serialReader;
@@ -84,6 +84,7 @@ namespace Whitestone.OpenSerialPortMonitor.Main.ViewModels
                 _cacheTimer.Elapsed += _cacheTimer_Elapsed;
                 _cacheTimer.Start();
 
+                _serialReader = new SerialReader();
                 _serialReader.Start(message.PortName, message.BaudRate, message.Parity, message.DataBits, message.StopBits);
                 _serialReader.SerialDataReceived += SerialDataReceived;
             }
@@ -121,17 +122,23 @@ namespace Whitestone.OpenSerialPortMonitor.Main.ViewModels
             IsAutoscroll = message.IsTurnedOn;
         }
 
+        public void Handle(ClearScreen message)
+        {
+            DataViewParsed = string.Empty;
+            DataViewHex = string.Empty;
+            DataViewRaw = string.Empty;
+        }
+
         void SerialDataReceived(object sender, SerialDataReceivedEventArgs e)
         {
-            _dataViewParsedBuilder.Append(System.Text.Encoding.ASCII.GetString(e.Data));
+            _dataViewParsedBuilder.Append(Encoding.ASCII.GetString(e.Data));
 
             foreach (byte data in e.Data)
             {
                 _rawDataCounter = _rawDataCounter + 1;
 
                 char character = (char)data;
-                if (data <= 31 ||
-                    data == 127)
+                if (data <= 0x1F || data == 0x7F)
                 {
                     character = '.';
                 }
