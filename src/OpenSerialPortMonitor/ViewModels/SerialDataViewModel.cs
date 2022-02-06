@@ -8,6 +8,7 @@ using System.Text;
 using System.Threading.Tasks;
 using System.Timers;
 using System.Windows;
+using Whitestone.OpenSerialPortMonitor.Main.Framework;
 using Whitestone.OpenSerialPortMonitor.Main.Messages;
 using Whitestone.OpenSerialPortMonitor.SerialCommunication;
 
@@ -47,7 +48,7 @@ namespace Whitestone.OpenSerialPortMonitor.Main.ViewModels
             set
             {
                 _dataViewParsed = value;
-                NotifyOfPropertyChange(() => DataViewParsed);
+                NotifyOfPropertyChange(() => DataViewParsed); //TODO: This can throw if the task is cancelled, which closing the window results in.
             }
         }
 
@@ -80,7 +81,7 @@ namespace Whitestone.OpenSerialPortMonitor.Main.ViewModels
             try
             {
                 _cacheTimer = new Timer();
-                _cacheTimer.Interval = 500;
+                _cacheTimer.Interval = 200;
                 _cacheTimer.Elapsed += _cacheTimer_Elapsed;
                 _cacheTimer.Start();
 
@@ -96,30 +97,38 @@ namespace Whitestone.OpenSerialPortMonitor.Main.ViewModels
 
         public void Handle(SerialPortDisconnect message)
         {
+            //TODO: Wait for the elapsed handler to exit here
             _cacheTimer.Stop();
-
             _serialReader.Stop();
         }
 
         void _cacheTimer_Elapsed(object sender, ElapsedEventArgs e)
         {
-            string dataParsed = _dataViewParsedBuilder.ToString();
-            _dataViewParsedBuilder = new StringBuilder();
+            try
+            {
+                queuedLock.Enter();
+                string dataParsed = _dataViewParsedBuilder.ToString();
+                _dataViewParsedBuilder = new StringBuilder();
 
-            string dataHex = _dataViewHexBuilder.ToString();
-            _dataViewHexBuilder = new StringBuilder();
+                string dataHex = _dataViewHexBuilder.ToString();
+                _dataViewHexBuilder = new StringBuilder();
 
-            string dataRaw = _dataViewRawBuilder.ToString();
-            _dataViewRawBuilder = new StringBuilder();
+                string dataRaw = _dataViewRawBuilder.ToString();
+                _dataViewRawBuilder = new StringBuilder();
 
-            string TrimFromStart(string str, int size = 0x8000) { return (str.Length > size) ? str.Remove(0, str.Length - size) : str; }
-            DataViewParsed = TrimFromStart(DataViewParsed);
-            DataViewHex = TrimFromStart(DataViewHex);
-            DataViewRaw = TrimFromStart(DataViewRaw);
+                string TrimFromStart(string str, int size = 0x8000) { return (str.Length > size) ? str.Remove(0, str.Length - size) : str; }
+                DataViewParsed = TrimFromStart(DataViewParsed);
+                DataViewHex = TrimFromStart(DataViewHex);
+                DataViewRaw = TrimFromStart(DataViewRaw);
 
-            DataViewParsed += dataParsed;
-            DataViewHex += dataHex;
-            DataViewRaw += dataRaw;
+                DataViewParsed += dataParsed;
+                DataViewHex += dataHex;
+                DataViewRaw += dataRaw;
+            }
+            finally
+            {
+                queuedLock.Exit();
+            }
         }
 
         public void Handle(Autoscroll message)
@@ -134,29 +143,36 @@ namespace Whitestone.OpenSerialPortMonitor.Main.ViewModels
             DataViewRaw = string.Empty;
         }
 
+        QueuedLock queuedLock = new QueuedLock();
         void SerialDataReceived(object sender, SerialDataReceivedEventArgs e)
         {
-            _dataViewParsedBuilder.Append(Encoding.ASCII.GetString(e.Data));
-
-            foreach (byte data in e.Data)
+            try
             {
-                _rawDataCounter = _rawDataCounter + 1;
+                queuedLock.Enter();
+                _dataViewParsedBuilder.Append(Encoding.ASCII.GetString(e.Data));
 
-                char character = (char)data;
-                if (data <= 0x1F || data == 0x7F)
+                foreach (byte data in e.Data)
                 {
-                    character = '.';
-                }
+                    char character = (char)data;
+                    if (char.IsControl(character))
+                    {
+                        character = '.';
+                    }
 
-                _dataViewHexBuilder.Append(string.Format("{0:x2} ", data));
-                _dataViewRawBuilder.Append(character);
+                    _dataViewHexBuilder.Append(string.Format("{0:x2} ", data));
+                    _dataViewRawBuilder.Append(character);
 
-                if (_rawDataCounter > 0 && _rawDataCounter % 16 == 15)
-                {
-                    _dataViewHexBuilder.Append("\r\n");
-                    _dataViewRawBuilder.Append("\r\n");
-                    _rawDataCounter = 0;
+                    if (++_rawDataCounter == 16)
+                    {
+                        _dataViewHexBuilder.Append("\r\n");
+                        _dataViewRawBuilder.Append("\r\n");
+                        _rawDataCounter = 0;
+                    }
                 }
+            }
+            finally
+            {
+                queuedLock.Exit();
             }
         }
 

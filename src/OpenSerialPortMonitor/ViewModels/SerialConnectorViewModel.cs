@@ -14,14 +14,29 @@ namespace Whitestone.OpenSerialPortMonitor.Main.ViewModels
     public class SerialConnectorViewModel : PropertyChangedBase, IHandle<ConnectionError>
     {
         private readonly IEventAggregator _eventAggregator;
-        
+
         public BindableCollection<string> ComPorts { get; set; }
         public BindableCollection<int> BaudRates { get; set; }
         public BindableCollection<Parity> Parities { get; set; }
         public BindableCollection<int> DataBits { get; set; }
         public BindableCollection<StopBits> StopBits { get; set; }
 
-        public string SelectedComPort { get; set; }
+        private string _selectedComPort = null;
+        public string SelectedComPort
+        {
+            get
+            {
+                return _selectedComPort;
+            }
+            set
+            {
+                _selectedComPort = value;
+                if (value != null)
+                {
+                    BindParameterValuesForPort(value);
+                }
+            }
+        }
         public int SelectedBaudRate { get; set; }
         public int SelectedDataBits { get; set; }
         public Parity SelectedParity { get; set; }
@@ -49,42 +64,37 @@ namespace Whitestone.OpenSerialPortMonitor.Main.ViewModels
             }
         }
 
+        private SerialReader.SerialPortDefinition[] serialPortDefinitions;
+
         public SerialConnectorViewModel(IEventAggregator eventAggregator)
         {
             _eventAggregator = eventAggregator;
             _eventAggregator.Subscribe(this);
 
-            BindValues();
+            BindPortNameList();
         }
 
-        private void BindValues()
+        private void BindPortNameList()
         {
-            BaudRates = new BindableCollection<int>() { 1200, 2400, 4800, 9600, 19200, 38400, 57600, 74880, 115200, 250000, 500000, 1000000 };
-            SelectedBaudRate = 115200;
+            serialPortDefinitions = SerialReader.GetAvailablePorts().ToArray();
+            ComPorts = new BindableCollection<string>(serialPortDefinitions.Select(x => x.PortName));
+            SelectedComPort = serialPortDefinitions.FirstOrDefault()?.PortName;
+        }
 
-            DataBits = new BindableCollection<int>() { 5, 6, 7, 8, 9 };
-            SelectedDataBits = 8;
+        private void BindParameterValuesForPort(string portName)
+        {
+            var port = serialPortDefinitions.First(x => x.PortName == portName);
+            BaudRates = new BindableCollection<int>(port.SupportedBaudRates);
+            SelectedBaudRate = BaudRates.Contains(9600) ? 9600 : BaudRates.First();
 
-            Parities = new BindableCollection<Parity>();
-            foreach (Parity p in Enum.GetValues(typeof(Parity)))
-            {
-                Parities.Add(p);
-            }
-            SelectedParity = Parity.None;
+            DataBits = new BindableCollection<int>(port.SupportedDataBits);
+            SelectedDataBits = DataBits.Contains(8) ? 8 : DataBits.First();
 
-            StopBits = new BindableCollection<StopBits>();
-            foreach (StopBits s in Enum.GetValues(typeof(StopBits)))
-            {
-                StopBits.Add(s);
-            }
-            SelectedStopBits = System.IO.Ports.StopBits.One;
+            Parities = new BindableCollection<Parity>(port.SupportedParityTypes);
+            SelectedParity = Parities.Contains(Parity.None) ? Parity.None : Parities.First();
 
-
-            IEnumerable<string> ports = SerialReader.GetAvailablePorts();
-            ComPorts = new BindableCollection<string>();
-            ComPorts.AddRange(ports);
-
-            SelectedComPort = ports.FirstOrDefault();
+            StopBits = new BindableCollection<StopBits>(port.SupportedStopBits);
+            SelectedStopBits = StopBits.Contains(System.IO.Ports.StopBits.One) ? System.IO.Ports.StopBits.One : StopBits.First();
         }
 
         public void Connect()
