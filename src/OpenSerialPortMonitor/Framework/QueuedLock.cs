@@ -11,7 +11,7 @@ namespace Whitestone.OpenSerialPortMonitor.Main.Framework
 
         public QueuedLock()
         {
-            innerLock = new Object();
+            innerLock = new object();
         }
 
         public void Enter()

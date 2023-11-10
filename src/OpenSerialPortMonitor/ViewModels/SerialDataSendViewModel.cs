@@ -1,10 +1,10 @@
 ﻿using Caliburn.Micro;
 using System;
 using System.Collections.Generic;
-using System.Linq;
-using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
-using System.Windows;
+using System.Windows.Input;
+using Whitestone.OpenSerialPortMonitor.Main.Framework;
 using Whitestone.OpenSerialPortMonitor.Main.Messages;
 
 namespace Whitestone.OpenSerialPortMonitor.Main.ViewModels
@@ -14,6 +14,8 @@ namespace Whitestone.OpenSerialPortMonitor.Main.ViewModels
         private readonly IEventAggregator _eventAggregator;
 
         private string _dataToSend = string.Empty;
+        private ICommand _EnterKeyCommand { get; set; }
+
         public string DataToSend
         {
             get { return _dataToSend; }
@@ -99,11 +101,21 @@ namespace Whitestone.OpenSerialPortMonitor.Main.ViewModels
                 NotifyOfPropertyChange(() => IsValidData);
             }
         }
+        public ICommand EnterKeyCommand
+        {
+            get { return _EnterKeyCommand; }
+            set
+            {
+                _EnterKeyCommand = value;
+                NotifyOfPropertyChange(() => EnterKeyCommand);
+            }
+        }
 
         public SerialDataSendViewModel(IEventAggregator eventAggregator)
         {
             _eventAggregator = eventAggregator;
-            _eventAggregator.Subscribe(this);
+            _eventAggregator.SubscribeOnPublishedThread(this);
+            EnterKeyCommand = new KeyCommand(DoSend);
         }
 
         public void DoSend()
@@ -127,20 +139,20 @@ namespace Whitestone.OpenSerialPortMonitor.Main.ViewModels
                 data.AddRange(System.Text.Encoding.ASCII.GetBytes(parsed));
             }
 
-            _eventAggregator.PublishOnUIThread(new Messages.SerialPortSend() { Data = data.ToArray() });
+            _eventAggregator.PublishOnUIThreadAsync(new Messages.SerialPortSend() { Data = data.ToArray() });
         }
 
-        public void Handle(SerialPortConnect message)
+        public async Task HandleAsync(SerialPortConnect message, CancellationToken cancellationToken)
         {
             IsConnected = true;
         }
 
-        public void Handle(SerialPortDisconnect message)
+        public async Task HandleAsync(SerialPortDisconnect message, CancellationToken cancellationToken)
         {
             IsConnected = false;
         }
 
-        public void Handle(ConnectionError message)
+        public async Task HandleAsync(ConnectionError message, CancellationToken cancellationToken)
         {
             IsConnected = false;
         }

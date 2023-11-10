@@ -8,6 +8,7 @@ using Whitestone.OpenSerialPortMonitor.SerialCommunication;
 using Whitestone.OpenSerialPortMonitor.Main.Messages;
 using System.IO.Ports;
 using System.Windows;
+using System.Threading;
 
 namespace Whitestone.OpenSerialPortMonitor.Main.ViewModels
 {
@@ -69,7 +70,7 @@ namespace Whitestone.OpenSerialPortMonitor.Main.ViewModels
         public SerialConnectorViewModel(IEventAggregator eventAggregator)
         {
             _eventAggregator = eventAggregator;
-            _eventAggregator.Subscribe(this);
+            _eventAggregator.SubscribeOnPublishedThread(this);
 
             BindPortNameList();
         }
@@ -97,11 +98,11 @@ namespace Whitestone.OpenSerialPortMonitor.Main.ViewModels
             SelectedStopBits = StopBits.Contains(System.IO.Ports.StopBits.One) ? System.IO.Ports.StopBits.One : StopBits.First();
         }
 
-        public void Connect()
+        public async Task ConnectAsync()
         {
             IsConnected = true;
 
-            _eventAggregator.PublishOnUIThread(new SerialPortConnect
+            await _eventAggregator.PublishOnUIThreadAsync(new SerialPortConnect
             {
                 PortName = SelectedComPort,
                 BaudRate = SelectedBaudRate,
@@ -111,14 +112,14 @@ namespace Whitestone.OpenSerialPortMonitor.Main.ViewModels
             });
         }
 
-        public void Disconnect()
+        public async Task DisconnectAsync()
         {
             IsConnected = false;
 
-            _eventAggregator.PublishOnUIThread(new SerialPortDisconnect());
+            await _eventAggregator.PublishOnUIThreadAsync(new SerialPortDisconnect());
         }
 
-        public void Handle(ConnectionError message)
+        public async Task HandleAsync(ConnectionError message, CancellationToken cancellationToken)
         {
             IsConnected = false;
 
@@ -127,7 +128,7 @@ namespace Whitestone.OpenSerialPortMonitor.Main.ViewModels
             {
                 errorMessage = message.Exception.InnerException.Message;
             }
-            MessageBox.Show(errorMessage, "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+            await Task.Run(() => MessageBox.Show(errorMessage, "Error", MessageBoxButton.OK, MessageBoxImage.Error));
         }
     }
 }

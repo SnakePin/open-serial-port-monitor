@@ -58,7 +58,7 @@ namespace Whitestone.OpenSerialPortMonitor.Main.Framework
 
         protected override void OnStartup(object sender, StartupEventArgs e)
         {
-            DisplayRootViewFor<IShell>();
+            DisplayRootViewForAsync<IShell>().Wait();
         }
 
         protected override void OnUnhandledException(object sender, System.Windows.Threading.DispatcherUnhandledExceptionEventArgs e)

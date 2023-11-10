@@ -1,13 +1,9 @@
 ﻿using Caliburn.Micro;
 using System;
-using System.Collections.Generic;
-using System.IO;
-using System.Linq;
-using System.Runtime.Serialization.Json;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 using System.Timers;
-using System.Windows;
 using Whitestone.OpenSerialPortMonitor.Main.Framework;
 using Whitestone.OpenSerialPortMonitor.Main.Messages;
 using Whitestone.OpenSerialPortMonitor.SerialCommunication;
@@ -18,13 +14,13 @@ namespace Whitestone.OpenSerialPortMonitor.Main.ViewModels
     {
         private readonly IEventAggregator _eventAggregator;
         private SerialReader _serialReader;
-        private Timer _cacheTimer;
+        private System.Timers.Timer _cacheTimer;
         private int _rawDataCounter = 0;
 
         public SerialDataViewModel(IEventAggregator eventAggregator)
         {
             _eventAggregator = eventAggregator;
-            _eventAggregator.Subscribe(this);
+            _eventAggregator.SubscribeOnPublishedThread(this);
 
             _serialReader = new SerialReader();
         }
@@ -76,11 +72,11 @@ namespace Whitestone.OpenSerialPortMonitor.Main.ViewModels
             }
         }
 
-        public void Handle(SerialPortConnect message)
+        public async Task HandleAsync(SerialPortConnect message, CancellationToken cancellationToken)
         {
             try
             {
-                _cacheTimer = new Timer();
+                _cacheTimer = new System.Timers.Timer();
                 _cacheTimer.Interval = 200;
                 _cacheTimer.Elapsed += _cacheTimer_Elapsed;
                 _cacheTimer.Start();
@@ -91,15 +87,16 @@ namespace Whitestone.OpenSerialPortMonitor.Main.ViewModels
             }
             catch (Exception ex)
             {
-                _eventAggregator.PublishOnUIThread(new ConnectionError() { Exception = ex });
+                await _eventAggregator.PublishOnUIThreadAsync(new ConnectionError() { Exception = ex });
             }
         }
 
-        public void Handle(SerialPortDisconnect message)
+        public async Task HandleAsync(SerialPortDisconnect message, CancellationToken cancellationToken)
         {
-            //TODO: Wait for the elapsed handler to exit here
             _cacheTimer.Stop();
             _serialReader.Stop();
+            queuedLock.Enter();
+            queuedLock.Exit();
         }
 
         void _cacheTimer_Elapsed(object sender, ElapsedEventArgs e)
@@ -131,12 +128,12 @@ namespace Whitestone.OpenSerialPortMonitor.Main.ViewModels
             }
         }
 
-        public void Handle(Autoscroll message)
+        public async Task HandleAsync(Autoscroll message, CancellationToken cancellationToken)
         {
             IsAutoscroll = message.IsTurnedOn;
         }
 
-        public void Handle(ClearScreen message)
+        public async Task HandleAsync(ClearScreen message, CancellationToken cancellationToken)
         {
             DataViewParsed = string.Empty;
             DataViewHex = string.Empty;
@@ -176,9 +173,9 @@ namespace Whitestone.OpenSerialPortMonitor.Main.ViewModels
             }
         }
 
-        public void Handle(SerialPortSend message)
+        public async Task HandleAsync(SerialPortSend message, CancellationToken cancellationToken)
         {
-            _serialReader.Send(message.Data);
+            await Task.Run(() => _serialReader.Send(message.Data));
         }
     }
 }

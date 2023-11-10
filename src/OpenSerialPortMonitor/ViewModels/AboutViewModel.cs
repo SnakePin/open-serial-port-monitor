@@ -18,9 +18,9 @@ namespace Whitestone.OpenSerialPortMonitor.Main.ViewModels
             }
         }
 
-        public void CloseWindow()
+        public async Task CloseWindowAsync()
         {
-            TryClose();
+            await TryCloseAsync();
         }
     }
 }
