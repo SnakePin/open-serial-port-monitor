@@ -5,6 +5,7 @@ using System.IO;
 using System.IO.Ports;
 using System.Linq;
 using System.Reflection;
+using System.Threading.Tasks;
 using System.Timers;
 
 namespace Whitestone.OpenSerialPortMonitor.SerialCommunication
@@ -12,8 +13,9 @@ namespace Whitestone.OpenSerialPortMonitor.SerialCommunication
     public class SerialReader : IDisposable
     {
         // Constants
-        private readonly int MAX_RECEIVE_BUFFER = 128;
-        private readonly int BUFFER_TIMER_INTERVAL = 100;
+        private const int ReceiveBufferSize = 512;
+        private const int ReceiveBufferFlushInterval = 100;
+        private const int FetchPortDetailsTimeout = 500;
 
         // Win32 Constants
         private static readonly ReadOnlyCollection<(int BaudRate, UInt32 FlagValue)> BaudRateWin32Flags = new ReadOnlyCollection<(int, UInt32)>(
@@ -90,14 +92,14 @@ namespace Whitestone.OpenSerialPortMonitor.SerialCommunication
 
         public SerialReader()
         {
-            _receiveBuffer = new List<byte>(MAX_RECEIVE_BUFFER * 3);
+            _receiveBuffer = new List<byte>(ReceiveBufferSize);
         }
 
         public static IEnumerable<SerialPortDefinition> GetAvailablePorts()
         {
-            var comPorts = new List<SerialPortDefinition>();
+            var taskList = new List<Task<SerialPortDefinition>>();
 
-            foreach (string portName in SerialPort.GetPortNames())
+            foreach (var portName in SerialPort.GetPortNames()) taskList.Add(Task.Factory.StartNew(() =>
             {
                 SerialPort _port = null;
                 try
@@ -120,23 +122,24 @@ namespace Whitestone.OpenSerialPortMonitor.SerialCommunication
                     var supportedParity = ParityWin32Flags.Where(x => (x.FlagValue & wSettableStopParity) != 0).Select(x => x.Parity).ToArray();
                     var supportedStopBits = StopBitsWin32Flags.Where(x => (x.FlagValue & wSettableStopParity) != 0).Select(x => x.StopBits).ToArray();
 
-                    comPorts.Add(new SerialPortDefinition(portName, supportedBaudRates, supportedDataBits, supportedParity, supportedStopBits));
+                    return new SerialPortDefinition(portName, supportedBaudRates, supportedDataBits, supportedParity, supportedStopBits);
                 }
-                catch { }
+                catch { return null; }
                 finally
                 {
                     _port?.Close();
                 }
-            }
+            }, TaskCreationOptions.LongRunning));
 
-            return comPorts.OrderBy(port => port.PortName);
+            Task.WaitAll(taskList.ToArray(), FetchPortDetailsTimeout);
+            return taskList.Where(x => x.IsCompleted && x.Result != null).Select(x => x.Result).OrderBy(x => x.PortName);
         }
 
         public void Start(string portName, int baudRate, Parity parity, int dataBits, StopBits stopBits)
         {
-            // Start the timer to empty the receive buffer (in case data smaller than MAX_RECEIVE_BUFFER is received)
+            // Start the timer to empty the receive buffer (in case data smaller than ReceiveBufferSize is received)
             _bufferTimer = new Timer();
-            _bufferTimer.Interval = BUFFER_TIMER_INTERVAL;
+            _bufferTimer.Interval = ReceiveBufferFlushInterval;
             _bufferTimer.Elapsed += _bufferTimer_Elapsed;
             _bufferTimer.Start();
 
@@ -167,7 +170,7 @@ namespace Whitestone.OpenSerialPortMonitor.SerialCommunication
                 {
                     // This is the proper way to read data, according to http://www.sparxeng.com/blog/software/must-use-net-system-io-ports-serialport
                     // Though he uses BeginRead/EndRead, ReadAsync is the preferred way in .NET 4.5
-                    byte[] buffer = new byte[MAX_RECEIVE_BUFFER * 3];
+                    byte[] buffer = new byte[ReceiveBufferSize];
                     int bytesRead = await _serialPort.BaseStream.ReadAsync(buffer, 0, buffer.Length);
 
                     byte[] received = new byte[bytesRead];
@@ -222,9 +225,9 @@ namespace Whitestone.OpenSerialPortMonitor.SerialCommunication
         {
             lock (_receiveBuffer)
             {
-                // Only send data if the last data received was more than BUFFER_TIMER_INTERVAL milliseconds ago
+                // Only send data if the last data received was more than ReceiveBufferFlushInterval milliseconds ago
                 // This is to ensure it only empties the buffer when not a lot of data has been received lately
-                if ((DateTime.Now - _lastReceivedData).TotalMilliseconds > BUFFER_TIMER_INTERVAL && _receiveBuffer.Count > 0)
+                if ((DateTime.Now - _lastReceivedData).TotalMilliseconds > ReceiveBufferFlushInterval && _receiveBuffer.Count > 0)
                 {
                     SendBuffer(ref _receiveBuffer);
                 }

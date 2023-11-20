@@ -74,7 +74,10 @@ namespace Whitestone.OpenSerialPortMonitor.Main.ViewModels
 
             serialPortMap = SerialReader.GetAvailablePorts().ToDictionary(x => x.PortName);
             ComPortNames = new BindableCollection<string>(serialPortMap.Keys);
-            SelectedComPort = serialPortMap.First().Key;
+            if (serialPortMap.Count > 0)
+            {
+                SelectedComPort = serialPortMap.First().Key;
+            }
         }
 
         private void BindParameterValuesForPort(string portName)
