@@ -122,13 +122,14 @@ namespace Whitestone.OpenSerialPortMonitor.SerialCommunication
 
                     comPorts.Add(new SerialPortDefinition(portName, supportedBaudRates, supportedDataBits, supportedParity, supportedStopBits));
                 }
+                catch { }
                 finally
                 {
                     _port?.Close();
                 }
             }
 
-            return comPorts.OrderBy(port => port);
+            return comPorts.OrderBy(port => port.PortName);
         }
 
         public void Start(string portName, int baudRate, Parity parity, int dataBits, StopBits stopBits)

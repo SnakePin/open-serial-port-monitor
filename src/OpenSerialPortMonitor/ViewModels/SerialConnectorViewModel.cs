@@ -16,7 +16,7 @@ namespace Whitestone.OpenSerialPortMonitor.Main.ViewModels
     {
         private readonly IEventAggregator _eventAggregator;
 
-        public BindableCollection<string> ComPorts { get; set; }
+        public BindableCollection<string> ComPortNames { get; set; }
         public BindableCollection<int> BaudRates { get; set; }
         public BindableCollection<Parity> Parities { get; set; }
         public BindableCollection<int> DataBits { get; set; }
@@ -65,26 +65,22 @@ namespace Whitestone.OpenSerialPortMonitor.Main.ViewModels
             }
         }
 
-        private SerialReader.SerialPortDefinition[] serialPortDefinitions;
+        private Dictionary<string, SerialReader.SerialPortDefinition> serialPortMap;
 
         public SerialConnectorViewModel(IEventAggregator eventAggregator)
         {
             _eventAggregator = eventAggregator;
             _eventAggregator.SubscribeOnPublishedThread(this);
 
-            BindPortNameList();
-        }
-
-        private void BindPortNameList()
-        {
-            serialPortDefinitions = SerialReader.GetAvailablePorts().ToArray();
-            ComPorts = new BindableCollection<string>(serialPortDefinitions.Select(x => x.PortName));
-            SelectedComPort = serialPortDefinitions.FirstOrDefault()?.PortName;
+            serialPortMap = SerialReader.GetAvailablePorts().ToDictionary(x => x.PortName);
+            ComPortNames = new BindableCollection<string>(serialPortMap.Keys);
+            SelectedComPort = serialPortMap.First().Key;
         }
 
         private void BindParameterValuesForPort(string portName)
         {
-            var port = serialPortDefinitions.First(x => x.PortName == portName);
+            var port = serialPortMap[portName];
+
             BaudRates = new BindableCollection<int>(port.SupportedBaudRates);
             SelectedBaudRate = BaudRates.Contains(9600) ? 9600 : BaudRates.First();
 

@@ -28,7 +28,7 @@
             <Label Grid.Row="0" Grid.Column="0" Grid.ColumnSpan="2" Content="Serial port connection" Background="#FF4d6082" Foreground="White" Margin="-5,-3,-5,2" Padding="5,2,0,0"></Label>
             
             <Label Grid.Row="1" Grid.Column="0" Content="COM port:"></Label>
-            <ComboBox Grid.Row="1" Grid.Column="1" x:Name="ComPorts" IsEnabled="{Binding IsDisconnected}" SelectedItem="{Binding SelectedComPort}" VerticalAlignment="Center"/>
+            <ComboBox Grid.Row="1" Grid.Column="1" x:Name="ComPortNames" IsEnabled="{Binding IsDisconnected}" SelectedItem="{Binding SelectedComPort}" VerticalAlignment="Center"/>
 
             <Label Grid.Row="2" Grid.Column="0" Content="Baud rate:"></Label>
             <ComboBox Grid.Row="2" Grid.Column="1" x:Name="BaudRates" IsEnabled="{Binding IsDisconnected}" SelectedItem="{Binding SelectedBaudRate}" VerticalAlignment="Center">

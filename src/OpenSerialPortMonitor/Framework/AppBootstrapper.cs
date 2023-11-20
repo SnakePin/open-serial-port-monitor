@@ -56,9 +56,9 @@ namespace Whitestone.OpenSerialPortMonitor.Main.Framework
             container.SatisfyImportsOnce(instance);
         }
 
-        protected override void OnStartup(object sender, StartupEventArgs e)
+        protected override async void OnStartup(object sender, StartupEventArgs e)
         {
-            DisplayRootViewForAsync<IShell>().Wait();
+            await DisplayRootViewForAsync<IShell>();
         }
 
         protected override void OnUnhandledException(object sender, System.Windows.Threading.DispatcherUnhandledExceptionEventArgs e)
